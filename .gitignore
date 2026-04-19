@@ -1,0 +1,28 @@
+# secrets
+.env
+.env.local
+.env.*.local
+
+# node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# build output
+client/dist/
+server/dist/
+dist/
+
+# runtime
+cache.sqlite
+cache.sqlite-journal
+cache.sqlite-shm
+cache.sqlite-wal
+*.log
+
+# editor
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
