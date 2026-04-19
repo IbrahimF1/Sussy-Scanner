@@ -62,128 +62,73 @@ Traditional manipulation detection relies on regulatory bodies with limited reso
 
 The following diagram traces the complete data flow from the moment a user enters a stock ticker to the final rendered analysis dashboard:
 
+
 ```mermaid
 flowchart TB
-    subgraph Browser ["🌐 Browser — React SPA"]
-        A["🔍 User enters ticker<br/>e.g. GME"]
-        B["Landing.jsx / Analysis.jsx"]
-        C["api.js — Axios client"]
-        D["DashboardGrid.jsx"]
-        D1["TradingViewChart"]
-        D2["SignalsPanel"]
-        D3["NarrativeMixChart"]
-        D4["NewsPanel"]
-        D5["SocialPanel"]
-        D6["KeyStatsPanel"]
+    User["👤 User"]
+
+    subgraph Frontend ["🌐 Frontend — React + Vite"]
+        direction LR
+        FE1["🔍 Ticker Search"]
+        FE2["📡 API Client<br/>(Axios)"]
+        FE3["📊 Dashboard Grid<br/>Charts + Panels"]
+        FE4["🎯 Risk Scores<br/>& Narratives"]
+        FE5["📈 TradingView<br/>Candlestick Charts"]
+        FE1 -->|"build request"| FE2 -->|"render components"| FE3 -->|"display scores"| FE4
+        FE3 -->|"render chart"| FE5
     end
 
-    subgraph Server ["🖥️ Express Server — port 3001"]
-        E["index.js — Router"]
-        F["cache.js — SQLite TTL Cache"]
-        G["explainability.js — Orchestrator"]
-    end
+    subgraph Backend ["🖥️ Backend — Express + Node.js"]
+        direction LR
+        BE1["🔀 API Router<br/>+ SQLite Cache"]
+        BE2["📈 Market Data Fetcher<br/>Yahoo Finance · Finnhub"]
+        BE3["💬 Social Aggregator<br/>Tavily · Reddit · News"]
+        BE4["🧮 Feature Vector Builder<br/>Price · Tech · Liquidity · Social · Squeeze"]
+        BE5["🎯 Scoring Engine<br/>5 Sub-Scores → Composite"]
+        BE6["🤖 Gemini Post Analyzer<br/>Hype · Sentiment · Narratives"]
+        BE7["📝 Narrative Generator<br/>Score Explanations"]
+        BE8["🔗 Similarity Engine<br/>Historical Pump Matching"]
 
-    subgraph Ingestion ["📡 Data Ingestion Layer"]
-        H["marketData.js"]
-        H1["yahooFinance.js<br/>yahoo-finance2"]
-        H2["yahooChart.js"]
-        H3["finnhub.js<br/>optional"]
-        H4["newsService.js"]
-        I["tavilySearch.js<br/>Tavily REST API"]
-        J["redditSearch.js"]
-        K["timestampEnricher.js"]
-    end
-
-    subgraph Features ["🧮 Feature Engineering"]
-        L["priceVolumeFeatures.js"]
-        M["technicalFeatures.js"]
-        N["liquidityFeatures.js"]
-        O["squeezeFeatures.js"]
-        P["socialFeatures.js"]
-        Q["featureVector.js"]
-    end
-
-    subgraph Scoring ["🎯 Scoring Engine"]
-        R["pumpRiskScore.js<br/>weight: 0.30"]
-        S["socialHypeScore.js<br/>weight: 0.25"]
-        T["liquidityScore.js<br/>weight: 0.20"]
-        U["techFragilityScore.js<br/>weight: 0.15"]
-        V["squeezeScore.js<br/>weight: 0.10"]
-        W["compositeScore.js"]
-    end
-
-    subgraph AI ["🤖 AI / Gemini Layer"]
-        X["geminiAnalyzer.js<br/>Post-level classification"]
-        Y["geminiNarrator.js<br/>Score narratives"]
-        Z["similarityEngine.js<br/>Historical matching"]
+        BE1 -->|"fetch market data"| BE2
+        BE2 -->|"fetch social posts"| BE3
+        BE3 -->|"compute features"| BE4
+        BE4 -->|"generate scores"| BE5
+        BE5 -->|"classify posts"| BE6
+        BE6 -->|"explain scores"| BE7
+        BE7 -->|"match history"| BE8
+        BE8 -->|"assembled analysis"| BE1
     end
 
     subgraph External ["🌍 External APIs"]
-        YF["Yahoo Finance API<br/>Price · Volume · Stats · Options"]
-        TV["Tavily Search API<br/>Social media posts"]
-        RD["Reddit<br/>r/wallstreetbets etc."]
-        FH["Finnhub API<br/>Quote · News (optional)"]
-        GM["Google Gemini API<br/>Gemma model"]
+        direction TB
+        EX1["Yahoo Finance<br/>Price · Volume · Stats"]
+        EX2["Tavily Search<br/>Social Media Posts"]
+        EX3["Reddit<br/>r/wallstreetbets"]
+        EX4["Google Gemini<br/>AI Analysis"]
+        EX5["Finnhub<br/>Quotes · News"]
+        EX1 --- EX2 --- EX3 --- EX4 --- EX5
     end
 
     %% User → Frontend
-    A --> B
-    B -->|"GET /api/analysis/:symbol"| C
-    C -->|"JSON response"| D
-    D --> D1 & D2 & D3 & D4 & D5 & D6
+    User -->|"enters ticker<br/>e.g. GME"| FE1
+    FE3 -.->|"views dashboard"| User
 
-    %% Frontend → Server
-    C -->|"HTTP request"| E
-    E --> F
-    E -->|"analyze(symbol)"| G
+    %% Frontend ↔ Backend
+    FE2 -->|"GET /api/analysis/:symbol"| BE1
+    BE1 -->|"JSON scores + narratives"| FE3
 
-    %% Server → Ingestion
-    G -->|"Promise.all"| H
-    H --> H1 & H2 & H3 & H4
-    G --> I
-    G --> J
-    I & J --> K
-
-    %% Ingestion → External
-    H1 & H2 -->|"REST"| YF
-    H3 -->|"REST"| FH
-    H4 -->|"REST"| YF
-    I -->|"REST"| TV
-    J -->|"JSON API"| RD
-
-    %% Ingestion → Features
-    H --> L & M & N & O
-    K --> P
-    L & M & N & O & P --> Q
-
-    %% Features → Scoring
-    Q --> R & S & T & U & V
-    R & S & T & U & V --> W
-
-    %% Scoring → AI
-    K --> X
-    W --> Y
-    Q --> Z
-    X & Y -->|"prompt"| GM
-
-    %% AI → Response
-    W -->|"composite + sub-scores"| G
-    X -->|"post analysis"| G
-    Y -->|"narratives"| G
-    Z -->|"similarity match"| G
-
-    %% Response → Frontend
-    G -->|"JSON analysis"| E
-    E -->|"HTTP response"| C
+    %% Backend → External
+    BE2 -.->|"price, volume, stats"| EX1
+    BE3 -.->|"social media posts"| EX2
+    BE3 -.->|"reddit discussions"| EX3
+    BE2 -.->|"quotes, news"| EX5
+    BE6 -.->|"classify posts, sentiment"| EX4
+    BE7 -.->|"generate narratives"| EX4
 
     %% Styling
-    style Browser fill:#1a1b26,color:#c0caf5,stroke:#7aa2f7
-    style Server fill:#1e1e2e,color:#cdd6f4,stroke:#89b4fa
-    style Ingestion fill:#1e1e2e,color:#cdd6f4,stroke:#a6e3a1
-    style Features fill:#1e1e2e,color:#cdd6f4,stroke:#f9e2af
-    style Scoring fill:#1e1e2e,color:#cdd6f4,stroke:#fab387
-    style AI fill:#1e1e2e,color:#cdd6f4,stroke:#cba6f7
-    style External fill:#2d2d3d,color:#cdd6f4,stroke:#f38ba8
+    style Frontend fill:#dbeafe,color:#1e3a5f,stroke:#7aa2f7
+    style Backend fill:#dcfce7,color:#14532d,stroke:#4ade80
+    style External fill:#fee2e2,color:#7f1d1d,stroke:#f87171
 ```
 
 ---
