@@ -16,6 +16,8 @@
 
 ---
 
+![Demo GIF](sussy-scanner.gif)
+
 ## 📰 Background: The Impact of Market Manipulation
 
 Market manipulation is not a victimless crime. It erodes the foundational trust that financial markets depend on to function efficiently, and its consequences ripple far beyond the trading floor.
